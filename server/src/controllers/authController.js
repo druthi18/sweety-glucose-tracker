@@ -7,7 +7,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 async function register(req, res) {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim() === '') {
       return res.status(400).json({ message: 'Name is required.' });
@@ -22,6 +22,7 @@ async function register(req, res) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanRole = role === 'doctor' ? 'doctor' : 'patient';
 
     // Check if user already exists
     const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [cleanEmail]);
@@ -33,15 +34,15 @@ async function register(req, res) {
     const passwordHash = await bcrypt.hash(password, salt);
 
     const result = await db.query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, name, email, created_at`,
-      [name.trim(), cleanEmail, passwordHash]
+      `INSERT INTO users (name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, email, role, created_at`,
+      [name.trim(), cleanEmail, passwordHash, cleanRole]
     );
 
     const user = result.rows[0];
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email },
+      { id: user.id, name: user.name, email: user.email, role: user.role || 'patient' },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -51,7 +52,8 @@ async function register(req, res) {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: user.role || 'patient'
       },
       token
     });
@@ -72,7 +74,7 @@ async function login(req, res) {
     const cleanEmail = String(email).trim().toLowerCase();
 
     const result = await db.query(
-      `SELECT id, name, email, password_hash
+      `SELECT id, name, email, role, password_hash
        FROM users
        WHERE LOWER(email) = LOWER($1)`,
       [cleanEmail]
@@ -89,8 +91,9 @@ async function login(req, res) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
+    const userRole = user.role || 'patient';
     const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email },
+      { id: user.id, name: user.name, email: user.email, role: userRole },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -100,7 +103,8 @@ async function login(req, res) {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: userRole
       },
       token
     });
@@ -113,7 +117,7 @@ async function login(req, res) {
 async function getMe(req, res) {
   try {
     const result = await db.query(
-      'SELECT id, name, email, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, role, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -121,7 +125,9 @@ async function getMe(req, res) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    return res.status(200).json({ user: result.rows[0] });
+    const user = result.rows[0];
+    user.role = user.role || 'patient';
+    return res.status(200).json({ user });
   } catch (err) {
     console.error('[GetMe Error]', err);
     return res.status(500).json({ message: 'Server error fetching user profile.' });

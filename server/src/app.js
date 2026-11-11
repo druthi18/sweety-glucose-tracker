@@ -3,6 +3,9 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const readingRoutes = require('./routes/readingRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const doctorRoutes = require('./routes/doctorRoutes');
+const { runDailyReminderCheck } = require('./jobs/reminderJob');
+const cacheService = require('./services/cacheService');
 
 const app = express();
 
@@ -10,15 +13,30 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health Check
+// Health Check & Cache Stats
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    cache: cacheService.getStats()
+  });
 });
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/readings', readingRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/doctor', doctorRoutes);
+
+// Background Job Trigger Endpoint
+app.post('/api/jobs/trigger-reminder', async (req, res) => {
+  try {
+    const summary = await runDailyReminderCheck();
+    res.status(200).json({ message: 'Daily reminder check executed successfully.', summary });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to execute reminder job.' });
+  }
+});
 
 // 404 Handler
 app.use((req, res) => {

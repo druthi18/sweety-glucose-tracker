@@ -9,10 +9,15 @@ export async function apiRequest(endpoint, options = {}) {
     ...options.headers
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers
-  });
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+  } catch (netErr) {
+    throw new Error('Unable to reach server. Please ensure the backend is running.');
+  }
 
   const data = await response.json().catch(() => ({}));
 

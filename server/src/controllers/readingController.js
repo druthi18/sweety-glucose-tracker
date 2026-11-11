@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { validateReadingInput, VALID_TIME_SLOTS } = require('../utils/validation');
+const cacheService = require('../services/cacheService');
 
 /**
  * Format a reading row from DB ensuring reading_date is YYYY-MM-DD string.
@@ -74,6 +75,9 @@ async function createReading(req, res) {
        RETURNING id, user_id, reading_date, time_slot, glucose_value, created_at, updated_at`,
       [userId, cleanDate, cleanSlot, intGlucose]
     );
+
+    // Invalidate report cache for this user
+    await cacheService.invalidateUserReports(userId);
 
     const reading = formatReadingRow(insertResult.rows[0]);
     return res.status(201).json({
@@ -249,6 +253,9 @@ async function updateReading(req, res) {
       [cleanDate, cleanSlot, intGlucose, readingId, userId]
     );
 
+    // Invalidate report cache for this user
+    await cacheService.invalidateUserReports(userId);
+
     const reading = formatReadingRow(updateResult.rows[0]);
     return res.status(200).json({
       message: 'Reading updated successfully.',
@@ -282,6 +289,9 @@ async function deleteReading(req, res) {
     if (deleteResult.rows.length === 0) {
       return res.status(404).json({ message: 'Reading not found.' });
     }
+
+    // Invalidate report cache for this user
+    await cacheService.invalidateUserReports(userId);
 
     return res.status(200).json({ message: 'Reading deleted successfully.' });
   } catch (err) {

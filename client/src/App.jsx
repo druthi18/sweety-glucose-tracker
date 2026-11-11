@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import DashboardPage from './pages/DashboardPage';
 import ReportsPage from './pages/ReportsPage';
+import DoctorPortalPage from './pages/DoctorPortalPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ReadingFormModal from './components/ReadingFormModal';
@@ -11,12 +12,22 @@ import { HeartPulse } from 'lucide-react';
 function MainApp() {
   const { user, loading } = useAuth();
   const [authView, setAuthView] = useState('login'); // 'login' | 'register'
-  const [activeTab, setActiveTab] = useState('readings'); // 'readings' | 'reports'
+  const [activeTab, setActiveTab] = useState('readings'); // 'readings' | 'reports' | 'doctor'
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingReading, setEditingReading] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'doctor') {
+        setActiveTab('doctor');
+      } else {
+        setActiveTab('readings');
+      }
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -44,7 +55,7 @@ function MainApp() {
           <HeartPulse size={30} />
         </div>
         <div style={{ fontWeight: 600, fontSize: '1.05rem', color: '#1e293b' }}>Sweety</div>
-        <div style={{ fontSize: '0.85rem' }}>Loading patient dashboard...</div>
+        <div style={{ fontSize: '0.85rem' }}>Loading workspace...</div>
       </div>
     );
   }
@@ -80,7 +91,9 @@ function MainApp() {
       />
 
       <div style={{ flex: 1 }}>
-        {activeTab === 'readings' ? (
+        {user.role === 'doctor' ? (
+          <DoctorPortalPage />
+        ) : activeTab === 'readings' ? (
           <DashboardPage
             onOpenAddModal={handleOpenAddModal}
             onEditReading={handleOpenEditModal}
@@ -94,13 +107,15 @@ function MainApp() {
         )}
       </div>
 
-      {/* Global Reading Modal */}
-      <ReadingFormModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        initialData={editingReading}
-        onSuccess={handleModalSuccess}
-      />
+      {/* Global Reading Modal for Patients */}
+      {user.role !== 'doctor' && (
+        <ReadingFormModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          initialData={editingReading}
+          onSuccess={handleModalSuccess}
+        />
+      )}
     </div>
   );
 }

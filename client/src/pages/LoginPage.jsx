@@ -34,6 +34,12 @@ export default function LoginPage({ onNavigateToRegister }) {
     setErrorMessage('');
   };
 
+  const handleFillDoctor = () => {
+    setEmail('doctor@sweety.test');
+    setPassword('Password123!');
+    setErrorMessage('');
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -127,16 +133,25 @@ export default function LoginPage({ onNavigateToRegister }) {
             </button>
           </form>
 
-          {/* Quick Demo Fill button */}
-          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--color-border)' }}>
+          {/* Quick Demo Fill buttons */}
+          <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <button
               type="button"
               onClick={handleFillDemo}
               className="btn btn-secondary"
-              style={{ width: '100%', fontSize: '0.85rem', color: '#0284c7' }}
+              style={{ width: '100%', fontSize: '0.825rem', color: '#0284c7' }}
             >
-              <Sparkles size={15} color="#0284c7" />
-              Fill Demo Patient Account
+              <Sparkles size={14} color="#0284c7" />
+              Fill Demo Patient (Eleanor Vance)
+            </button>
+            <button
+              type="button"
+              onClick={handleFillDoctor}
+              className="btn btn-secondary"
+              style={{ width: '100%', fontSize: '0.825rem', color: '#0f172a' }}
+            >
+              <Sparkles size={14} color="#0f172a" />
+              Fill Demo Doctor (Dr. Sarah Chen, MD)
             </button>
           </div>
         </div>

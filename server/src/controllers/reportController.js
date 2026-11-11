@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { formatReadingRow } = require('./readingController');
+const cacheService = require('../services/cacheService');
 
 /**
  * Returns formatted friendly date (e.g., '15 Oct 2026')
@@ -86,6 +87,14 @@ async function getReports(req, res) {
       return res.status(400).json({ message: 'Invalid date format. Expected YYYY-MM-DD.' });
     }
 
+    // Check Cache
+    const cacheKey = cacheService.generateKey(userId, selectedDate);
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.status(200).json({ ...cachedData, cached: true });
+    }
+
     // 1. Daily Report: The selected date
     const dailyStartDate = selectedDate;
     const dailyEndDate = selectedDate;
@@ -141,7 +150,7 @@ async function getReports(req, res) {
       [userId, mtdStartDate, mtdEndDate]
     );
 
-    return res.status(200).json({
+    const responsePayload = {
       selectedDate,
       daily: {
         title: 'Daily Report',
@@ -166,7 +175,13 @@ async function getReports(req, res) {
         ...monthlyStats
       },
       chartData: seriesResult.rows.map(formatReadingRow)
-    });
+    };
+
+    // Store in cache for 5 minutes (300 seconds)
+    await cacheService.set(cacheKey, responsePayload, 300);
+
+    res.setHeader('X-Cache', 'MISS');
+    return res.status(200).json({ ...responsePayload, cached: false });
   } catch (err) {
     console.error('[GetReports Error]', err);
     return res.status(500).json({ message: 'Server error generating reports.' });

@@ -28,44 +28,76 @@ async function seed() {
 
   initializePool();
 
-  const demoEmail = 'demo@sweety.test';
+  const demoPatientEmail = 'demo@sweety.test';
+  const demoDoctorEmail = 'doctor@sweety.test';
   const demoPassword = 'Password123!';
-  const demoName = 'Eleanor Vance (Patient)';
+  const demoPatientName = 'Eleanor Vance (Patient)';
+  const demoDoctorName = 'Dr. Sarah Chen, MD (Endocrinology)';
 
   // Hash password
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(demoPassword, salt);
 
-  // Check or create demo user
-  const userCheck = await query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [demoEmail]);
-  let userId;
+  // 1. Check or create demo patient
+  const userCheck = await query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [demoPatientEmail]);
+  let patientId;
 
   if (userCheck.rows.length > 0) {
-    userId = userCheck.rows[0].id;
-    console.log(`[Seed] Found existing demo user with ID: ${userId}`);
-    // Clear existing readings for clean seed
-    await query('DELETE FROM readings WHERE user_id = $1', [userId]);
+    patientId = userCheck.rows[0].id;
+    console.log(`[Seed] Found existing demo patient with ID: ${patientId}`);
+    await query('DELETE FROM readings WHERE user_id = $1', [patientId]);
   } else {
     const insertUser = await query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, $2, $3)
+      `INSERT INTO users (name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [demoName, demoEmail, passwordHash]
+      [demoPatientName, demoPatientEmail, passwordHash, 'patient']
     );
-    userId = insertUser.rows[0].id;
-    console.log(`[Seed] Created new demo user with ID: ${userId}`);
+    patientId = insertUser.rows[0].id;
+    console.log(`[Seed] Created new demo patient with ID: ${patientId}`);
   }
 
-  // Generate realistic readings
+  // 2. Check or create demo doctor
+  const docCheck = await query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [demoDoctorEmail]);
+  let doctorId;
+
+  if (docCheck.rows.length > 0) {
+    doctorId = docCheck.rows[0].id;
+    console.log(`[Seed] Found existing demo doctor with ID: ${doctorId}`);
+  } else {
+    const insertDoc = await query(
+      `INSERT INTO users (name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [demoDoctorName, demoDoctorEmail, passwordHash, 'doctor']
+    );
+    doctorId = insertDoc.rows[0].id;
+    console.log(`[Seed] Created new demo doctor with ID: ${doctorId}`);
+  }
+
+  // 3. Assign demo patient to demo doctor
+  const assignCheck = await query(
+    'SELECT id FROM doctor_patients WHERE doctor_id = $1 AND patient_id = $2',
+    [doctorId, patientId]
+  );
+  if (assignCheck.rows.length === 0) {
+    await query(
+      'INSERT INTO doctor_patients (doctor_id, patient_id) VALUES ($1, $2)',
+      [doctorId, patientId]
+    );
+    console.log(`[Seed] Assigned Patient #${patientId} to Doctor #${doctorId}`);
+  }
+
+  // 4. Generate realistic readings for the patient
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed
+  const currentMonth = now.getMonth();
   const currentDay = now.getDate();
 
   const datesToSeed = [];
 
-  // 1. Previous month: all days
-  const prevMonthDate = new Date(currentYear, currentMonth, 0); // last day of prev month
+  // Previous month: all days
+  const prevMonthDate = new Date(currentYear, currentMonth, 0);
   const prevMonthYear = prevMonthDate.getFullYear();
   const prevMonthIndex = prevMonthDate.getMonth();
   const daysInPrevMonth = prevMonthDate.getDate();
@@ -75,7 +107,7 @@ async function seed() {
     datesToSeed.push(formatDate(date));
   }
 
-  // 2. Current month: from 1st up to today
+  // Current month: from 1st up to today
   for (let d = 1; d <= currentDay; d++) {
     const date = new Date(currentYear, currentMonth, d);
     datesToSeed.push(formatDate(date));
@@ -87,40 +119,37 @@ async function seed() {
 
   for (const dateStr of datesToSeed) {
     const isToday = dateStr === formatDate(now);
-    // For today, populate up to 3 slots so user can try recording the 4th
+    // For today, populate 3 slots so user can try adding the 4th
     const slotsForDay = isToday ? SLOTS.slice(0, 3) : SLOTS;
 
     for (const slot of slotsForDay) {
       let glucoseValue;
       if (slot === 'Morning (fasting)') {
-        // Fasting range
         glucoseValue = getRandomInt(85, 125);
       } else if (slot === 'After breakfast') {
         glucoseValue = getRandomInt(120, 175);
       } else if (slot === 'After lunch') {
         glucoseValue = getRandomInt(115, 165);
       } else {
-        // After dinner
         glucoseValue = getRandomInt(130, 190);
       }
 
-      // Add variance
       if (Math.random() < 0.05) {
         glucoseValue = getRandomInt(210, 260); // Spike
       } else if (Math.random() < 0.03) {
-        glucoseValue = getRandomInt(65, 75); // Mild low
+        glucoseValue = getRandomInt(65, 75); // Low
       }
 
       const exist = await query(
         `SELECT id FROM readings WHERE user_id = $1 AND reading_date = $2 AND time_slot = $3`,
-        [userId, dateStr, slot]
+        [patientId, dateStr, slot]
       );
 
       if (exist.rows.length === 0) {
         await query(
           `INSERT INTO readings (user_id, reading_date, time_slot, glucose_value)
            VALUES ($1, $2, $3, $4)`,
-          [userId, dateStr, slot, glucoseValue]
+          [patientId, dateStr, slot, glucoseValue]
         );
         readingCount++;
       }
@@ -128,11 +157,15 @@ async function seed() {
   }
 
   console.log(`[Seed] Seeded ${readingCount} blood glucose readings successfully!`);
-  console.log('----------------------------------------------------');
-  console.log('Demo Account Credentials:');
-  console.log(`  Email:    ${demoEmail}`);
-  console.log(`  Password: ${demoPassword}`);
-  console.log('----------------------------------------------------');
+  console.log('====================================================');
+  console.log('Demo Accounts:');
+  console.log('  1. Patient Account:');
+  console.log(`     Email:    ${demoPatientEmail}`);
+  console.log(`     Password: ${demoPassword}`);
+  console.log('  2. Doctor Account:');
+  console.log(`     Email:    ${demoDoctorEmail}`);
+  console.log(`     Password: ${demoPassword}`);
+  console.log('====================================================');
 }
 
 if (require.main === module) {
