@@ -38,15 +38,18 @@ Comprehensive statistical analytics for any selected anchor date (e.g., `15 Oct 
 - **Monthly Report**: The whole previous month (e.g., `1 Sep – 30 Sep 2026`). Calculates highest, lowest, average, and count. Handles year transitions seamlessly (e.g., January anchor date queries December of previous year).
 - **Friendly Empty State**: Informative, clean visual fallback if no readings are recorded in a range.
 
-### 4. Bonus Features Implemented
+### 4. Bonus Features Implemented (All 7 Complete)
 - 🎯 **Pagination & Filtering**: `GET /api/readings?page=1&limit=20` with page navigation, slot filter, and date filters.
 - 📈 **Interactive Trend Chart**: Recharts line visualization illustrating chronological glucose values with clinical reference threshold lines (fasting 100 mg/dl and post-meal 140 mg/dl).
 - 🐳 **Docker & Docker Compose**: Full multi-container setup with PostgreSQL 17, Express backend, and React production build.
 - 🧪 **Comprehensive Automated Testing**:
   - **Backend**: 21 Jest + Supertest integration tests testing authentication, reading validations, CRUD, reports, and tenant isolation.
   - **Frontend**: 5 React Testing Library + Vitest tests asserting all reading form validation rules.
-- 🌱 **Database Seeding**: Creates a realistic demo user with 160+ readings spanning the previous and current month.
-- ⚡ **Zero-Dependency In-Memory PostgreSQL Fallback**: Uses `pg-mem` to allow running the full application and tests out of the box even when a local PostgreSQL server is not installed or running.
+- 🌱 **Database Seeding**: Creates realistic demo user Eleanor Vance (160+ readings) and demo doctor Dr. Sarah Chen.
+- ⚡ **Zero-Dependency In-Memory PostgreSQL Fallback**: Uses `pg-mem` to run tests and server out of the box without requiring local Postgres.
+- 🩺 **Doctor Role & Caregiver Portal**: Dedicated physician account (`doctor@sweety.test` / `Password123!`) that accesses their assigned patient panel, views patient compliance, and inspects patient reports and trend lines.
+- ⚡ **Report Caching with Instant Invalidation**: Cached clinical report aggregates that are automatically purged whenever a reading is added, modified, or deleted.
+- 🔔 **Background Daily Reminder Worker**: Audits patient compliance for the day and logs reminder notifications for any patients with fewer than 4 readings logged (`POST /api/jobs/trigger-reminder`).
 
 ---
 
