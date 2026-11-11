@@ -1,0 +1,27 @@
+{
+  "name": "sweety",
+  "version": "1.0.0",
+  "description": "Sweety - Blood Glucose Tracker (MERN + PostgreSQL)",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "test:server": "npm test --prefix server",
+    "test:client": "npm test --prefix client",
+    "test": "npm run test:server && npm run test:client",
+    "db:init": "npm run db:init --prefix server",
+    "seed": "npm run seed --prefix server"
+  },
+  "keywords": [
+    "blood-glucose",
+    "diabetes",
+    "tracker",
+    "postgresql",
+    "express",
+    "react",
+    "node"
+  ],
+  "author": "Sweety Developer",
+  "license": "MIT"
+}
