@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:client": "vitest run"
+    "test:client": "vitest run",
+    "seed": "npm run seed --prefix ../server"
   },
   "dependencies": {
     "lucide-react": "^0.475.0",
