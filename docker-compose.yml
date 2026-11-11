@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: sweety-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-sweety_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sweety_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: sweety-server
+    restart: always
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/sweety_db
+      JWT_SECRET: ${JWT_SECRET:-sweety_jwt_secret_change_in_production}
+      JWT_EXPIRES_IN: 7d
+      USE_PG_MEM: "false"
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: sweety-client
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+
+volumes:
+  pgdata:
