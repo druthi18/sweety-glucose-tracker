@@ -87,13 +87,13 @@ async function seed() {
 
   for (const dateStr of datesToSeed) {
     const isToday = dateStr === formatDate(now);
-    // For today, populate up to 3 or 4 slots so user can add remaining slot
+    // For today, populate up to 3 slots so user can try recording the 4th
     const slotsForDay = isToday ? SLOTS.slice(0, 3) : SLOTS;
 
     for (const slot of slotsForDay) {
       let glucoseValue;
       if (slot === 'Morning (fasting)') {
-        // Normal fasting 70-99, slightly elevated 100-130
+        // Fasting range
         glucoseValue = getRandomInt(85, 125);
       } else if (slot === 'After breakfast') {
         glucoseValue = getRandomInt(120, 175);
@@ -104,20 +104,26 @@ async function seed() {
         glucoseValue = getRandomInt(130, 190);
       }
 
-      // Add a couple intentional edge values for variance
+      // Add variance
       if (Math.random() < 0.05) {
-        glucoseValue = getRandomInt(210, 260); // High spike
+        glucoseValue = getRandomInt(210, 260); // Spike
       } else if (Math.random() < 0.03) {
         glucoseValue = getRandomInt(65, 75); // Mild low
       }
 
-      await query(
-        `INSERT INTO readings (user_id, reading_date, time_slot, glucose_value)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (user_id, reading_date, time_slot) DO NOTHING`,
-        [userId, dateStr, slot, glucoseValue]
+      const exist = await query(
+        `SELECT id FROM readings WHERE user_id = $1 AND reading_date = $2 AND time_slot = $3`,
+        [userId, dateStr, slot]
       );
-      readingCount++;
+
+      if (exist.rows.length === 0) {
+        await query(
+          `INSERT INTO readings (user_id, reading_date, time_slot, glucose_value)
+           VALUES ($1, $2, $3, $4)`,
+          [userId, dateStr, slot, glucoseValue]
+        );
+        readingCount++;
+      }
     }
   }
 
